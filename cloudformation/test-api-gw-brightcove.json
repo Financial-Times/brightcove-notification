@@ -1,0 +1,89 @@
+{
+  "Resources": {
+    "BrightcoveCallbacksAPI": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "BrightcoveCallbacksAPI"
+      }
+    },
+    "brightcovecallback": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "BrightcoveCallbacksAPI"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "BrightcoveCallbacksAPI",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "brightcovecallback"
+      }
+    },
+    "PostCallbackMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "DependsOn": [
+        "BrightcoveCallbacksAPI",
+        "brightcovecallback"
+      ],
+      "Properties": {
+        "RestApiId": {
+          "Ref": "BrightcoveCallbacksAPI"
+        },
+        "ResourceId": {
+          "Ref": "brightcovecallback"
+        },
+        "HttpMethod": "POST",
+        "MethodResponses": [
+          {
+            "StatusCode": "200"
+          }
+        ],
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200"
+            }
+          ],
+          "Uri": "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:810385116814:function:BrightCoveCallBackAPI/invocations"
+        }
+      }
+    },
+    "GetNotificationMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "DependsOn": ["BrightcoveCallbacksAPI","brightcovecallback"],
+      "Properties": {
+        "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
+        "ResourceId": { "Ref": "brightcovecallback" },
+        "HttpMethod": "GET",
+        "MethodResponses": [{ "StatusCode" : "200" }],
+        "AuthorizationType": "NONE",
+        "Integration": { "IntegrationHttpMethod" : "POST",
+          "Type" : "AWS",
+          "IntegrationResponses" : [ { "StatusCode" : "200" } ],
+          "Uri"  : "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:810385116814:function:BrightCoveNotificationAPI/invocations",
+          "RequestTemplates": {"application/json": "#set($inputRoot = $input.path('$')) \n {\"entityId\": \"$input.params('entityId')\"}"}
+        },
+        "RequestParameters": {"method.request.querystring.entityId":true}
+      }
+    },
+    "TestDeployment": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "DependsOn": ["BrightcoveCallbacksAPI","brightcovecallback","PostCallbackMethod"],
+      "Properties": {
+        "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
+        "Description": "Test deployment",
+        "StageName": "test",
+        "StageDescription": { "StageName": "test",
+          "Description": "test",
+          "CacheClusterEnabled": "true",
+          "CacheClusterSize": "1.6"
+        }
+      }
+    }
+  }
+}
