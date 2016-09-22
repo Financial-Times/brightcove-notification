@@ -2,4 +2,4 @@ deployment:
   production:
     branch: master
     commands:
-      - gulp 
+        - gulp  --env=prod --role=arn:aws:iam::528773984231:role/FT-Linux-Role
