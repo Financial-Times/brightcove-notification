@@ -4,7 +4,7 @@
   "description": "Bright cove ingest callbacks and notfication",
   "main": "index.js",
   "scripts": {
-    "test": "gulp lint --dev"
+    "test": "nodeunit test/index.test.js"
   },
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
     "gulp-uglify": "^1.5.1",
     "gulp-wrap": "^0.11.0",
     "gulp-zip": "~3.2.0",
+    "nodeunit": "^0.10.2",
     "object-assign": "~2.0.0",
     "run-sequence": "~1.1.0",
     "wrappy": "~1.0.1"
@@ -38,6 +39,8 @@
     "aws-lambda-mock-context": "^2.0.0",
     "aws-sdk-mock": "^1.0.10",
     "gulp-cloudformation": "0.0.2",
+    "oauth": "^0.9.14",
+    "requestretry": "^1.6.0",
     "tape": "^4.5.1"
   }
 }

@@ -17,7 +17,8 @@ exports.handler = function(event, context) {
         },
         ExpressionAttributeValues: {
             ":eeee": entityId
-        }
+        },
+        ScanIndexForward: false
     };
 
     docClient.query(params, function(err, data) {

@@ -74,7 +74,7 @@ gulp.task('compile', function(callback) {
 });
 
 var lambda_params = {
-        FunctionName: 'BrightCoveNotificationAPI',
+        FunctionName: 'BrightCoveCallBackAPI',
         Role: gutil.env.role
 };
 
