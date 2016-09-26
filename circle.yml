@@ -2,4 +2,4 @@ deployment:
   production:
     branch: master
     commands:
-        - gulp  --env=prod --role=arn:aws:iam::528773984231:role/FTFlexServices-Deployer
+        - gulp  --env=prod --role=arn:aws:iam::528773984231:role/LambdaExecutionRole
