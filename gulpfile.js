@@ -13,6 +13,10 @@ var wrap = require('gulp-wrap');
 var zip    = require('gulp-zip');
 var lambda = require('gulp-awslambda');
 var cloudformation = require('gulp-cloudformation');
+const template = require('gulp-template');
+var config = { useIAM: true };
+var s3 = require('gulp-s3-upload')(config);
+
 
 var paths = {};
 
@@ -30,17 +34,7 @@ paths.dist.js   = path.join(paths.dist.root, 'js');
 
 var isDev = (gutil.env.env == 'dev')
 gulp.task('env', function() {
-    if (isDev) {
-       gutil.log(gutil.colors.cyan('Development Env'));
-    } else if (gutil.env.env == 'test'){
-       gutil.log(gutil.colors.magenta('Test Env'));
-    } else if (gutil.env.env == 'prod'){
-       gutil.log(gutil.colors.magenta('Production Env'));
-    } else {
-      gutil.log(gutil.colors.red('--env=X, X must be dev|test|prod'));
-      process.exit(1)
-    }
-    if ((!isDev) && (!gutil.env.role)) {
+    if ((!isDev) && (!gutil.env.lambdarole) && (!gutil.env.account) && (!gutil.env.lambdauploadrole) && (!gutil.env.region)) {
       gutil.log(gutil.colors.red('--role=, must be a valid aws arn'));
       process.exit(1)
     }
@@ -73,62 +67,45 @@ gulp.task('compile', function(callback) {
          sequence('compile:clean', ['compile:js'], callback);
 });
 
-var lambda_params = {
-        FunctionName: 'BrightCoveCallBackAPI',
-        Role: gutil.env.role
-};
+gulp.task('deploy:cloudformation', function(callback) {
+    var cloudformation_template = 'cloudformation/' + gutil.env.env + '/flex-cloudformation-brightcove.json';
 
-var aws_opts = {
-        region: 'eu-west-1'
-};
-
-gulp.task('deploy:dynamotable', function(callback) {
-    var cloudformation_template = 'cloudformation/' + gutil.env.env + '-dynamo-brightcovetable.json';
-    aws.config.credentials = new aws.SharedIniFileCredentials({ profile: gutil.env.env });
     return gulp.src([cloudformation_template])
         .pipe(cloudformation.init({   //Only validates the stack files
-                region: aws_opts.region,
-                accessKeyId: aws.config.credentials.accessKeyId,
-                secretAccessKey: aws.config.credentials.secretAccessKey
-            })
-            .pipe(cloudformation.deploy({
-                // Capabilities: [ 'CAPABILITY_IAM' ] //needed if deploying IAM Roles
-            }))
-            .on('error', function(error) {
-                gutil.log('Unable to deploy dynamo table exiting With Error', error);
-                throw error;
-            }));
-});
-
-gulp.task('deploy:apigw', function(callback) {
-    var cloudformation_template = 'cloudformation/' + gutil.env.env + '-api-gw-brightcove.json';
-    aws.config.credentials = new aws.SharedIniFileCredentials({ profile: gutil.env.env });
-    // gutil.log('Access key: ' + aws.config.credentials.accessKeyId);
-    // gutil.log('Secret key: ' + aws.config.credentials.secretAccessKey);
-    return gulp.src([cloudformation_template])
-        .pipe(cloudformation.init({   //Only validates the stack files
-                region: aws_opts.region,
-                accessKeyId: aws.config.credentials.accessKeyId,
-                secretAccessKey: aws.config.credentials.secretAccessKey
-            })
-            .pipe(cloudformation.deploy({
-                // Capabilities: [ 'CAPABILITY_IAM' ] //needed if deploying IAM Roles
-            }))
-            .on('error', function(error) {
+            region: gutil.env.region
+            }).pipe(cloudformation.deploy({})).on('error', function(error) {
                 gutil.log('Unable to deploy api-gw exiting With Error', error);
                 throw error;
             }));
+    
 });
 
-gulp.task('deploy:lambda', function(callback) {
-    return  gulp.src('index.js')
-            .pipe(zip('archive.zip'))
-            .pipe(lambda(lambda_params, aws_opts, gutil.env.env))
-            .pipe(gulp.dest('.'));
+gulp.task('deploy:lambda-zip', function() {
+    gulp.src('./index.js')
+        .pipe(zip('brightcove-notification-api.zip'))
+        .pipe(gulp.dest('.'));
+});
+
+gulp.task('deploy:lambda-upload', function() {
+    gulp.src('brightcove-notification-api.zip')
+        .pipe(s3({
+            Bucket: 'com.ft.video.artefacts'
+        }, {
+            maxRetries: 5
+        }));
+});
+
+gulp.task('deploy:cloudformation-template', function() {
+
+    gulp.src('cloudformation/flex-cloudformation-brightcove.json')
+        .pipe(template({lambdarole: gutil.env.lambdarole,
+                        account: gutil.env.account,
+                        accountforrole: gutil.env.account}))
+        .pipe(gulp.dest('cloudformation/' + gutil.env.env));
 });
 
 gulp.task('deploy', function(callback) {
-    sequence('deploy:lambda', 'deploy:apigw', callback);
+    sequence('deploy:cloudformation-template', 'deploy:lambda-zip', 'deploy:lambda-upload', 'deploy:cloudformation', callback);
 });
 
 gulp.task('default', function(callback) {
@@ -137,5 +114,4 @@ gulp.task('default', function(callback) {
     } else {
        sequence('env', 'lint', 'compile', 'deploy', callback);
     }
-
 });
