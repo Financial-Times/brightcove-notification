@@ -16,8 +16,6 @@ var cloudformation = require('gulp-cloudformation');
 const template = require('gulp-template');
 var config = { useIAM: true };
 var s3 = require('gulp-s3-upload')(config);
-
-
 var paths = {};
 
 paths.src = {};
@@ -100,7 +98,8 @@ gulp.task('deploy:cloudformation-template', function() {
     gulp.src('cloudformation/flex-cloudformation-brightcove.json')
         .pipe(template({lambdarole: gutil.env.lambdarole,
                         account: gutil.env.account,
-                        accountforrole: gutil.env.account}))
+                        accountforrole: gutil.env.account,
+                        environment: gutil.env.env}))
         .pipe(gulp.dest('cloudformation/' + gutil.env.env));
 });
 

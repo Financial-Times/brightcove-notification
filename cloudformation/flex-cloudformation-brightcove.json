@@ -1,95 +1,145 @@
 { "Resources": {
-    "brightcovenotificationapilambda": {
-      "Type": "AWS::Lambda::Function",
-      "Properties": {
-        "Handler": "index.handler",
-        "Role": "arn:aws:iam::<%= accountforrole %>:role/<%= lambdarole %>",
-        "Code": {
-          "S3Bucket": "com.ft.video.artefacts",
-          "S3Key": "brightcove-notification-api.zip"
-        },
-        "Runtime": "nodejs",
-        "Timeout": "25",
-        "FunctionName": "brightcove-notication-api-lambda"
-      }
-    },
-    "BrightcoveCallbacksAPI": {
-      "Type": "AWS::ApiGateway::RestApi",
-      "Properties": {
-        "Name": "BrightcoveCallbacksAPI"
-      }
-    },
-    "brightcovecallback": {
-      "Type": "AWS::ApiGateway::Resource",
-      "Properties": {
-        "RestApiId": {
-          "Ref": "BrightcoveCallbacksAPI"
-        },
-        "ParentId": {
-          "Fn::GetAtt": [
-            "BrightcoveCallbacksAPI",
-            "RootResourceId"
-          ]
-        },
-        "PathPart": "brightcovecallback"
-      }
-    },
-    "PostCallbackMethod": {
-      "Type": "AWS::ApiGateway::Method",
-      "DependsOn": [
-        "BrightcoveCallbacksAPI",
-        "brightcovecallback"
+
+  "brightcovecallbackapipostlambda": {
+    "Type": "AWS::Lambda::Function",
+    "Properties": {
+      "Handler": "index.handler",
+      "Role": "arn:aws:iam::<%= accountforrole %>:role/<%= lambdarole %>",
+      "Code": {
+        "S3Bucket": "com.ft.video.artefacts",
+        "S3Key": "brightcove-callback-api.zip"
+      },
+      "Runtime": "nodejs",
+      "Timeout": "25",
+      "FunctionName": "video-brightcove-callback-api-post-lambda"
+    }
+  },
+  "brightcovenotificationapilambda": {
+    "Type": "AWS::Lambda::Function",
+    "Properties": {
+      "Handler": "index.handler",
+      "Role": "arn:aws:iam::<%= accountforrole %>:role/<%= lambdarole %>",
+      "Code": {
+        "S3Bucket": "com.ft.video.artefacts",
+        "S3Key": "brightcove-notification-api.zip"
+      },
+      "Runtime": "nodejs",
+      "Timeout": "25",
+      "FunctionName": "video-brightcove-notication-api-lambda"
+    }
+  },
+  "BrightcoveCallbacksAPI": {
+    "Type": "AWS::ApiGateway::RestApi",
+    "Properties": {
+      "Name": "brightcove-callback-api"
+    }
+  },
+  "brightcovecallback": {
+    "Type": "AWS::ApiGateway::Resource",
+    "Properties": {
+      "RestApiId": {
+        "Ref": "BrightcoveCallbacksAPI"
+      },
+      "ParentId": {
+        "Fn::GetAtt": [
+          "BrightcoveCallbacksAPI",
+          "RootResourceId"
+        ]
+      },
+      "PathPart": "brightcovecallback"
+    }
+  },
+  "PostCallbackMethod": {
+    "Type": "AWS::ApiGateway::Method",
+    "DependsOn": [
+      "BrightcoveCallbacksAPI",
+      "brightcovecallback"
+    ],
+    "Properties": {
+      "RestApiId": {
+        "Ref": "BrightcoveCallbacksAPI"
+      },
+      "ResourceId": {
+        "Ref": "brightcovecallback"
+      },
+      "HttpMethod": "POST",
+      "MethodResponses": [{"StatusCode": "200"}
       ],
-      "Properties": {
-        "RestApiId": {
-          "Ref": "BrightcoveCallbacksAPI"
-        },
-        "ResourceId": {
-          "Ref": "brightcovecallback"
-        },
-        "HttpMethod": "POST",
-        "MethodResponses": [{"StatusCode": "200"}
-        ],
-        "AuthorizationType": "NONE",
-        "Integration": {
-          "IntegrationHttpMethod": "POST",
-          "Type": "AWS",
-          "IntegrationResponses": [{"StatusCode": "200"}],
-          "Uri": "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:<%= account %>:function:brightcove-notication-api-lambda/invocations"
-        }
+      "AuthorizationType": "NONE",
+      "Integration": {
+        "IntegrationHttpMethod": "POST",
+        "Type": "AWS",
+        "IntegrationResponses": [{"StatusCode": "200"}],
+        "Credentials": "arn:aws:iam::<%= accountforrole %>:role/VideoApiGwLambdaInvocationRole",
+        "Uri"  : { "Fn::Join" : [ "", ["arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/", { "Fn::GetAtt": ["brightcovecallbackapipostlambda", "Arn"] }, "/invocations" ]] }
       }
-    },
-    "GetNotificationMethod": {
-      "Type": "AWS::ApiGateway::Method",
-      "DependsOn": ["BrightcoveCallbacksAPI","brightcovecallback"],
-      "Properties": {
-        "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
-        "ResourceId": { "Ref": "brightcovecallback" },
-        "HttpMethod": "GET",
-        "MethodResponses": [{ "StatusCode" : "200" }],
-        "AuthorizationType": "NONE",
-        "Integration": { "IntegrationHttpMethod" : "POST",
-          "Type" : "AWS",
-          "IntegrationResponses" : [ { "StatusCode" : "200" } ],
-          "Uri"  : "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:<%= account %>:function:brightcove-notication-api-lambda/invocations",
-          "RequestTemplates": {"application/json": "#set($inputRoot = $input.path('$')) \n {\"entityId\": \"$input.params('entityId')\"}"}
-        },
-        "RequestParameters": {"method.request.querystring.entityId":true}
+    }
+  },
+  "GetNotificationMethod": {
+    "Type": "AWS::ApiGateway::Method",
+    "DependsOn": ["BrightcoveCallbacksAPI","brightcovecallback"],
+    "Properties": {
+      "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
+      "ResourceId": { "Ref": "brightcovecallback" },
+      "HttpMethod": "GET",
+      "MethodResponses": [{
+        "StatusCode": "200"
+      }, {
+        "StatusCode": "404"
+      }, {
+        "StatusCode": "400"
+      }],
+      "AuthorizationType": "NONE",
+      "Integration": { "IntegrationHttpMethod" : "POST",
+        "Type" : "AWS",
+        "IntegrationResponses" : [ { "StatusCode" : "200" },{
+          "StatusCode": "404",
+          "SelectionPattern": ".*ResourceNotFoundException.*",
+          "ResponseTemplates": {
+            "application/json": "#set($allParams = $input.params()) { \"body-json\" : $input.json('$'), \"params\" : { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : { #foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if($foreach.hasNext),#end #end }, \"stage-variables\" : { #foreach($key in $stageVariables.keySet()) \"$key\" : \"$util.escapeJavaScript($stageVariables.get($key))\" #if($foreach.hasNext),#end #end }, \"context\" : { \"account-id\" : \"$context.identity.accountId\", \"api-id\" : \"$context.apiId\", \"api-key\" : \"$context.identity.apiKey\", \"authorizer-principal-id\" : \"$context.authorizer.principalId\", \"caller\" : \"$context.identity.caller\", \"cognito-authentication-provider\" : \"$context.identity.cognitoAuthenticationProvider\", \"cognito-authentication-type\" : \"$context.identity.cognitoAuthenticationType\", \"cognito-identity-id\" : \"$context.identity.cognitoIdentityId\", \"cognito-identity-pool-id\" : \"$context.identity.cognitoIdentityPoolId\", \"http-method\" : \"$context.httpMethod\", \"stage\" : \"$context.stage\", \"source-ip\" : \"$context.identity.sourceIp\", \"user\" : \"$context.identity.user\", \"user-agent\" : \"$context.identity.userAgent\", \"user-arn\" : \"$context.identity.userArn\", \"request-id\" : \"$context.requestId\", \"resource-id\" : \"$context.resourceId\", \"resource-path\" : \"$context.resourcePath\" } }"
+          }},{
+          "StatusCode": "400",
+          "SelectionPattern": ".*ValidationException.*",
+          "ResponseTemplates": {
+            "application/json": "#set($allParams = $input.params()) { \"body-json\" : $input.json('$'), \"params\" : { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : { #foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if($foreach.hasNext),#end #end }, \"stage-variables\" : { #foreach($key in $stageVariables.keySet()) \"$key\" : \"$util.escapeJavaScript($stageVariables.get($key))\" #if($foreach.hasNext),#end #end }, \"context\" : { \"account-id\" : \"$context.identity.accountId\", \"api-id\" : \"$context.apiId\", \"api-key\" : \"$context.identity.apiKey\", \"authorizer-principal-id\" : \"$context.authorizer.principalId\", \"caller\" : \"$context.identity.caller\", \"cognito-authentication-provider\" : \"$context.identity.cognitoAuthenticationProvider\", \"cognito-authentication-type\" : \"$context.identity.cognitoAuthenticationType\", \"cognito-identity-id\" : \"$context.identity.cognitoIdentityId\", \"cognito-identity-pool-id\" : \"$context.identity.cognitoIdentityPoolId\", \"http-method\" : \"$context.httpMethod\", \"stage\" : \"$context.stage\", \"source-ip\" : \"$context.identity.sourceIp\", \"user\" : \"$context.identity.user\", \"user-agent\" : \"$context.identity.userAgent\", \"user-arn\" : \"$context.identity.userArn\", \"request-id\" : \"$context.requestId\", \"resource-id\" : \"$context.resourceId\", \"resource-path\" : \"$context.resourcePath\" } }"
+          }}],
+        "Credentials": "arn:aws:iam::<%= accountforrole %>:role/VideoApiGwLambdaInvocationRole",
+        "Uri"  : { "Fn::Join" : [ "", ["arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/", { "Fn::GetAtt": ["brightcovenotificationapilambda", "Arn"] }, "/invocations" ]] },
+        "RequestTemplates": {"application/json": "#set($inputRoot = $input.path('$')) \n {\"entityId\": \"$input.params('entityId')\"}"}
+      },
+      "RequestParameters": {"method.request.querystring.entityId":true}
+    }
+  },
+  "TestDeployment": {
+    "Type": "AWS::ApiGateway::Deployment",
+    "DependsOn": ["BrightcoveCallbacksAPI","brightcovecallback","PostCallbackMethod"],
+    "Properties": {
+      "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
+      "Description": "Brightcove callback deployment",
+      "StageName": "brightcovecallback",
+      "StageDescription": { "StageName": "<%= environment %>",
+        "Description": "<%= environment %>",
+        "CacheClusterEnabled": "true",
+        "CacheClusterSize": "1.6"
       }
-    },
-    "TestDeployment": {
-      "Type": "AWS::ApiGateway::Deployment",
-      "DependsOn": ["BrightcoveCallbacksAPI","brightcovecallback","PostCallbackMethod"],
-      "Properties": {
-        "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
-        "Description": "Test deployment",
-        "StageName": "test",
-        "StageDescription": { "StageName": "test",
-          "Description": "test",
-          "CacheClusterEnabled": "true",
-          "CacheClusterSize": "1.6"
-        }
+    }
+  },
+  "CallBackStage": {
+    "Type": "AWS::ApiGateway::Stage",
+    "DependsOn": ["TestDeployment", "TestDeployment","BrightcoveCallbacksAPI","brightcovecallback","PostCallbackMethod"],
+    "Properties": {
+      "CacheClusterEnabled": "true",
+      "CacheClusterSize": "1.6",
+      "DeploymentId": {
+        "Ref": "TestDeployment"
+      },
+      "Description": "BrightCove callback API Deployment",
+      "RestApiId": { "Ref": "BrightcoveCallbacksAPI" },
+      "StageName": "brightcovecallback<%= environment %>",
+      "Variables": {
+        "environment": "<%= environment %>"
       }
     }
   }
+}
 }
